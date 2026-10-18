@@ -1,0 +1,354 @@
+-- Load Rayfield UI Library
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+-- Language Manager (Default: English)
+local CurrentLang = "ENG"
+
+local Translations = {
+    ENG = {
+        WindowTitle = "Doraemon jetjet",
+        TabAutoFarm = "🏆 Main / Auto Farm",
+        TabPlayed = "🚀 Played",
+        TabUtility = "👁️ ESP & Utility",
+        
+        -- Auto Farm
+        AutoFarmToggle = "🌌 Auto Farm Win",
+        AFWSuccess = "Auto Farm Win: Teleported to 1000m!",
+        AFWWarn = "Fell off platform! Reteleporting in 2s...",
+        AFWOff = "Stopped Auto Farm Win.",
+        
+        -- Played
+        JumpInput = "Enter Jump Value",
+        JumpInputHolder = "e.g.: 100, 250, 1000...",
+        JumpSaved = "Saved Jump value: ",
+        JumpToggle = "⚡ Enable / Disable Jump",
+        JumpOn = "Jump Enabled!",
+        JumpOff = "Jump reset to default.",
+        
+        SpeedInput = "Enter Speed Value",
+        SpeedInputHolder = "e.g.: 30, 50, 100...",
+        SpeedSaved = "Saved Speed value: ",
+        SpeedToggle = "👟 Enable / Disable Speed",
+        SpeedOn = "Speed Enabled!",
+        SpeedOff = "Speed reset to default.",
+        
+        -- Utility & Language
+        LangDropdown = "🌐 Language",
+        ESPToggle = "👁️ Enable / Disable ESP Highlight",
+        AntiAFKToggle = "🛡️ Enable / Disable Anti-AFK",
+        AntiAFKSaved = "Prevented AFK kick!",
+        AntiAFKOn = "Anti-AFK Enabled.",
+        AntiAFKOff = "Anti-AFK Disabled.",
+        
+        -- Common
+        Success = "Success!",
+        Warning = "Warning!",
+        Error = "Error!",
+        Off = "Disabled",
+        InvalidNumber = "Please enter a valid number!",
+        PromptToggle = " Toggle ON to apply!",
+        MenuReady = "Doraemon jetjet Menu is Ready!"
+    }
+}
+
+local function L(key)
+    return Translations[CurrentLang][key] or key
+end
+
+-- Link lấy key
+local KeyLink = "https://vi.anotepad.com/notes/52dmhaf3"
+
+-- Create Menu Window với Key System (Đã bật SaveKey để lưu key sau khi xác nhận thành công)
+local Window = Rayfield:CreateWindow({
+   Name = L("WindowTitle"),
+   LoadingTitle = "Loading...",
+   LoadingSubtitle = "by Doraemon jetjet",
+   ConfigurationSaving = { Enabled = false },
+   Discord = { Enabled = false },
+   KeySystem = true,
+   KeySettings = {
+      Title = "Doraemon jetjet | Key System",
+      Subtitle = "Nhập Key để truy cập Script",
+      Note = "Lấy key tại link bên dưới (Bấm nút bên trái để chép Link)",
+      FileName = "DoraemonKeyConfig", -- Tên file lưu key trên thiết bị
+      SaveKey = true,                 -- Lưu key tự động khi người dùng bấm xác nhận key đúng
+      GrabKeyFromSite = false,
+      Key = {"YOUR_KEY_HERE"}         -- Điền Key chính xác của bạn vào đây
+   }
+})
+
+-- Tạo nút sao chép Link Key
+local KeyTab = Window:CreateTab("🔑 Get Key Link", 4483362458)
+KeyTab:CreateButton({
+   Name = "📋 Sao chép Link Lấy Key",
+   Callback = function()
+       if setclipboard then
+           setclipboard(KeyLink)
+           Rayfield:Notify({ Title = "Thành công!", Content = "Đã sao chép link lấy key vào bộ nhớ tạm!", Duration = 3, Image = 4483362458 })
+       else
+           Rayfield:Notify({ Title = "Lỗi!", Content = "Executor của bạn không hỗ trợ setclipboard!", Duration = 3, Image = 4483362458 })
+       end
+   end,
+})
+
+-- Create Function Tabs
+local AutoFarmTab = Window:CreateTab(L("TabAutoFarm"), 4483362458)
+local PlayedTab = Window:CreateTab(L("TabPlayed"), 4483362458)
+local UtilityTab = Window:CreateTab(L("TabUtility"), 4483362458)
+
+---------------------------------------------------------
+-- 1. TAB MAIN / AUTO FARM WIN
+---------------------------------------------------------
+local PlatformPart = nil
+local AutoTPActive = false
+
+local function createSkyPlatform(hrp)
+    if PlatformPart and PlatformPart.Parent then
+        PlatformPart:Destroy()
+    end
+
+    local targetCFrame = hrp.CFrame + Vector3.new(0, 3571, 0)
+    
+    PlatformPart = Instance.new("Part")
+    PlatformPart.Name = "SkyPlatform_Doraemon"
+    PlatformPart.Size = Vector3.new(30, 1, 30)
+    PlatformPart.CFrame = targetCFrame - Vector3.new(0, 3.5, 0)
+    PlatformPart.Anchored = true
+    PlatformPart.CanCollide = true
+    PlatformPart.Material = Enum.Material.Plastic
+    PlatformPart.TopSurface = Enum.SurfaceType.Studs
+    PlatformPart.Color = Color3.fromRGB(50, 200, 50)
+    PlatformPart.Transparency = 0
+    PlatformPart.Parent = workspace
+
+    return targetCFrame
+end
+
+task.spawn(function()
+    while task.wait(0.1) do
+        local player = game.Players.LocalPlayer
+        local curChar = player.Character
+        local curHrp = curChar and curChar:FindFirstChild("HumanoidRootPart")
+        local humanoid = curChar and curChar:FindFirstChildOfClass("Humanoid")
+        
+        if not curHrp or not humanoid or humanoid.Health <= 0 then continue end
+
+        if AutoTPActive then
+            if not PlatformPart or not PlatformPart.Parent then
+                local safeCFrame = createSkyPlatform(curHrp)
+                curHrp.CFrame = safeCFrame
+            else
+                local distance = (Vector3.new(curHrp.Position.X, 0, curHrp.Position.Z) - Vector3.new(PlatformPart.Position.X, 0, PlatformPart.Position.Z)).Magnitude
+                local heightDiff = math.abs(curHrp.Position.Y - PlatformPart.Position.Y)
+
+                if distance > 18 or heightDiff > 8 then
+                    curHrp.CFrame = PlatformPart.CFrame + Vector3.new(0, 3.5, 0)
+                    task.wait(0.5)
+                end
+            end
+        end
+    end
+end)
+
+AutoFarmTab:CreateToggle({
+   Name = L("AutoFarmToggle"),
+   CurrentValue = false,
+   Flag = "AutoFarmWinToggle",
+   Callback = function(Value)
+       AutoTPActive = Value
+       if Value then
+           Rayfield:Notify({ Title = L("Success"), Content = "Auto Farm Win Active!", Duration = 2, Image = 4483362458 })
+       else
+           if PlatformPart and PlatformPart.Parent then
+               PlatformPart:Destroy()
+               PlatformPart = nil
+           end
+           Rayfield:Notify({ Title = L("Off"), Content = L("AFWOff"), Duration = 2, Image = 4483362458 })
+       end
+   end,
+})
+
+---------------------------------------------------------
+-- 2. TAB PLAYED: JUMP & SPEED
+---------------------------------------------------------
+local CustomJump = 50
+local CustomSpeed = 16
+local EnableJump = false
+local EnableSpeed = false
+
+local function updateJump(value)
+    local player = game.Players.LocalPlayer
+    if player and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+        local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid.UseJumpPower then
+            humanoid.JumpPower = value
+        else
+            humanoid.JumpHeight = (value / 50) * 7.2
+        end
+    end
+end
+
+local function updateSpeed(value)
+    local player = game.Players.LocalPlayer
+    if player and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+        local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+        humanoid.WalkSpeed = value
+    end
+end
+
+game.Players.LocalPlayer.CharacterAdded:Connect(function(character)
+    character:WaitForChild("Humanoid")
+    task.wait(0.5)
+    if EnableJump then updateJump(CustomJump) end
+    if EnableSpeed then updateSpeed(CustomSpeed) end
+end)
+
+PlayedTab:CreateInput({
+   Name = L("JumpInput"),
+   PlaceholderText = L("JumpInputHolder"),
+   RemoveTextAfterFocusLost = false,
+   Callback = function(Text)
+       local number = tonumber(Text)
+       if number then
+           CustomJump = number
+           Rayfield:Notify({ Title = L("Success"), Content = L("JumpSaved") .. tostring(number) .. "." .. L("PromptToggle"), Duration = 2, Image = 4483362458 })
+       else
+           Rayfield:Notify({ Title = L("Error"), Content = L("InvalidNumber"), Duration = 2, Image = 4483362458 })
+       end
+   end,
+})
+
+PlayedTab:CreateToggle({
+   Name = L("JumpToggle"),
+   CurrentValue = false,
+   Flag = "EnableJumpToggle",
+   Callback = function(Value)
+       EnableJump = Value
+       if Value then
+           updateJump(CustomJump)
+           Rayfield:Notify({ Title = L("Success"), Content = L("JumpOn"), Duration = 2, Image = 4483362458 })
+       else
+           updateJump(50)
+           Rayfield:Notify({ Title = L("Off"), Content = L("JumpOff"), Duration = 2, Image = 4483362458 })
+       end
+   end,
+})
+
+PlayedTab:CreateInput({
+   Name = L("SpeedInput"),
+   PlaceholderText = L("SpeedInputHolder"),
+   RemoveTextAfterFocusLost = false,
+   Callback = function(Text)
+       local number = tonumber(Text)
+       if number then
+           CustomSpeed = number
+           Rayfield:Notify({ Title = L("Success"), Content = L("SpeedSaved") .. tostring(number) .. "." .. L("PromptToggle"), Duration = 2, Image = 4483362458 })
+       else
+           Rayfield:Notify({ Title = L("Error"), Content = L("InvalidNumber"), Duration = 2, Image = 4483362458 })
+       end
+   end,
+})
+
+PlayedTab:CreateToggle({
+   Name = L("SpeedToggle"),
+   CurrentValue = false,
+   Flag = "EnableSpeedToggle",
+   Callback = function(Value)
+       EnableSpeed = Value
+       if Value then
+           updateSpeed(CustomSpeed)
+           Rayfield:Notify({ Title = L("Success"), Content = L("SpeedOn"), Duration = 2, Image = 4483362458 })
+       else
+           updateSpeed(16)
+           Rayfield:Notify({ Title = L("Off"), Content = L("SpeedOff"), Duration = 2, Image = 4483362458 })
+       end
+   end,
+})
+
+---------------------------------------------------------
+-- 3. TAB ESP & UTILITY
+---------------------------------------------------------
+local ESPEnabled = false
+
+local function applyESP(vPlayer)
+    if vPlayer == game.Players.LocalPlayer then return end
+
+    local function addHighlight(character)
+        if not character then return end
+        if not character:FindFirstChild("ESPHighlight") then
+            local highlight = Instance.new("Highlight")
+            highlight.Name = "ESPHighlight"
+            highlight.Adornee = character
+            highlight.FillColor = Color3.fromRGB(255, 0, 0)
+            highlight.FillTransparency = 0.5
+            highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+            highlight.OutlineTransparency = 0
+            highlight.Enabled = ESPEnabled
+            highlight.Parent = character
+        end
+    end
+
+    if vPlayer.Character then addHighlight(vPlayer.Character) end
+    vPlayer.CharacterAdded:Connect(function(char)
+        char:WaitForChild("HumanoidRootPart")
+        task.wait(0.5)
+        addHighlight(char)
+    end)
+end
+
+for _, player in pairs(game.Players:GetPlayers()) do applyESP(player) end
+game.Players.PlayerAdded:Connect(applyESP)
+
+UtilityTab:CreateDropdown({
+   Name = L("LangDropdown"),
+   Options = {"English"},
+   CurrentOption = "English",
+   Flag = "LanguageDropdown",
+   Callback = function(Option)
+       Rayfield:Notify({ Title = L("Success"), Content = "Language Updated!", Duration = 2, Image = 4483362458 })
+   end,
+})
+
+UtilityTab:CreateToggle({
+   Name = L("ESPToggle"),
+   CurrentValue = false,
+   Flag = "ESPToggle",
+   Callback = function(Value)
+       ESPEnabled = Value
+       for _, player in pairs(game.Players:GetPlayers()) do
+           if player.Character and player.Character:FindFirstChild("ESPHighlight") then
+               player.Character.ESPHighlight.Enabled = Value
+           end
+       end
+   end,
+})
+
+local AntiAFKConnection
+local AntiAFKEnabled = false
+
+UtilityTab:CreateToggle({
+   Name = L("AntiAFKToggle"),
+   CurrentValue = false,
+   Flag = "AntiAFKToggle",
+   Callback = function(Value)
+       AntiAFKEnabled = Value
+       if AntiAFKEnabled then
+           local VirtualUser = game:GetService("VirtualUser")
+           AntiAFKConnection = game.Players.LocalPlayer.Idled:Connect(function()
+               VirtualUser:CaptureController()
+               VirtualUser:ClickButton2(Vector2.new(0, 0))
+               Rayfield:Notify({ Title = "Anti-AFK", Content = L("AntiAFKSaved"), Duration = 2, Image = 4483362458 })
+           end)
+           Rayfield:Notify({ Title = "Anti-AFK", Content = L("AntiAFKOn"), Duration = 2, Image = 4483362458 })
+       else
+           if AntiAFKConnection then
+               AntiAFKConnection:Disconnect()
+               AntiAFKConnection = nil
+           end
+           Rayfield:Notify({ Title = "Anti-AFK", Content = L("AntiAFKOff"), Duration = 2, Image = 4483362458 })
+       end
+   end,
+})
+
+-- Startup Notification
+Rayfield:Notify({ Title = L("Success"), Content = L("MenuReady"), Duration = 3, Image = 4483362458 })
